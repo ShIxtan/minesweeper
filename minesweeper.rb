@@ -1,43 +1,79 @@
-class Tile
-attr_accessor :bomb, :flag, :show
+require 'yaml'
+require_relative 'board'
 
-  def initialize
-    @bomb = bomb?
-    @flag = false
-    @show = false
+class Minesweeper
+
+  attr_accessor :board, :lost
+
+  def initialize(filename = nil)
+    @board = load(filename) if filename
+    @board = Board.new() unless filename
   end
 
-  def bomb?
-    if rand(10) == 1
-      true
+  def play
+    timer = Time::now
+    until board.won?
+      take_turn
+    end
+
+    board.render
+    puts "YOU ARE AWESOME"
+    time = Time::now - timer
+    puts "It took you #{time} seconds to complete the game!"
+  end
+
+  def save(filename)
+    File.open("#{filename}.yml", "w") do |f|
+      f.puts board.to_yaml
+    end
+  end
+
+  def load(filename)
+    YAML::load(File.read("#{filename}.yml"))
+  end
+
+  def lose
+    self.lost = true
+    puts "You lose."
+    board.reveal_all
+    board.render
+    exit
+  end
+
+  def take_turn
+    board.render
+    choices = ['r','q','f','s']
+    choice = nil
+    until choices.include?(choice)
+      puts "Reveal(r) Flag(f) "
+      print "Save (s) Quit (q)? "
+      choice = gets.chomp
+    end
+
+    lose if choice == "q"
+
+    if choice == "s"
+      print "filename?  "
+      filename = gets.chomp
+      save(filename)
+      puts " saved to #{filename}.yml"
     else
-      false
-    end
-  end
+      print "location? "
+      pos = gets.chomp.split("").reject { |s| s == "," }.map(&:to_i)
+      x, y = pos
 
-  def to_s
-  bomb ? "X" : "*" 
-  end
-end
-
-class Board
-
-  attr_accessor :board
-
-  def initialize
-    @board = Array.new(9) { Array.new(9)}
-    board.each.with_index do|row, column|
-      row.each_index do |i|
-      board[column][i] = Tile.new
+      if choice == "r"
+        board[x,y].reveal
+        lose if board[x,y].is_bomb?
+      else
+        board[x,y].flag
+      end
     end
   end
 end
 
-  def render
-    board.each {|row| puts row.join(" ")}
-  end
+
+if $PROGRAM_NAME == __FILE__
+  game = Minesweeper.new()
+  game.play
 end
-
-a = Board.new
-
-a.render
